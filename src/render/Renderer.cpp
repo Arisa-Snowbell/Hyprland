@@ -1553,7 +1553,10 @@ bool CHyprRenderer::commitPendingAndDoExplicitSync(PHLMONITOR pMonitor) {
         }
 
         if (!hdrIsHandled) {
-            if (hdsIsActive != wantHDR) {
+            if (*PPASS == 0 && *PAUTOHDR == 0) {
+                // Explicitly disable HDR metadata when passthrough and auto HDR are both off
+                pMonitor->m_output->state->setHDRMetadata(NO_HDR_METADATA);
+            } else if (hdsIsActive != wantHDR) {
                 if (*PAUTOHDR && !(hdsIsActive && configuredHDR)) {
                     // modify or restore monitor image description for auto-hdr
                     // FIXME ok for now, will need some other logic if monitor image description can be modified some other way
