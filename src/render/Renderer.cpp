@@ -1512,7 +1512,7 @@ bool CHyprRenderer::commitPendingAndDoExplicitSync(PHLMONITOR pMonitor) {
 
     const bool  configuredHDR = (pMonitor->m_cmType == CM_HDR_EDID || pMonitor->m_cmType == CM_HDR);
     const bool  hdsIsActive   = pMonitor->m_output->state->state().hdrMetadata.hdmi_metadata_type1.eotf == 2;
-    bool        wantHDR       = configuredHDR;
+    bool        wantHDR       = *PAUTOHDR ? configuredHDR : false;
 
     if (pMonitor->supportsHDR()) {
         // HDR metadata determined by
@@ -1533,18 +1533,20 @@ bool CHyprRenderer::commitPendingAndDoExplicitSync(PHLMONITOR pMonitor) {
                 ROOT_SURF->findFirstPreorder([ROOT_SURF](SP<CWLSurfaceResource> surf) { return surf->m_colorManagement.valid() && surf->extends() == ROOT_SURF->extends(); });
 
             // we have a surface with image description
-            if (SURF && SURF->m_colorManagement.valid() && SURF->m_colorManagement->hasImageDescription()) {
-                const bool surfaceIsHDR = SURF->m_colorManagement->imageDescription().transferFunction == CM_TRANSFER_FUNCTION_ST2084_PQ;
-                if (*PPASS == 1 || (*PPASS == 2 && surfaceIsHDR)) {
-                    // passthrough
-                    bool needsHdrMetadataUpdate = SURF->m_colorManagement->needsHdrMetadataUpdate() || pMonitor->m_previousFSWindow != WINDOW;
-                    if (SURF->m_colorManagement->needsHdrMetadataUpdate())
-                        SURF->m_colorManagement->setHDRMetadata(createHDRMetadata(SURF->m_colorManagement->imageDescription(), pMonitor->m_output->parsedEDID));
-                    if (needsHdrMetadataUpdate)
-                        pMonitor->m_output->state->setHDRMetadata(SURF->m_colorManagement->hdrMetadata());
-                    hdrIsHandled = true;
-                } else if (*PAUTOHDR && surfaceIsHDR)
-                    wantHDR = true; // auto-hdr: hdr on
+            if (*PPASS != 0 || *PAUTOHDR != 0) {
+                if (SURF && SURF->m_colorManagement.valid() && SURF->m_colorManagement->hasImageDescription()) {
+                    const bool surfaceIsHDR = SURF->m_colorManagement->imageDescription().transferFunction == CM_TRANSFER_FUNCTION_ST2084_PQ;
+                    if (*PPASS == 1 || (*PPASS == 2 && surfaceIsHDR)) {
+                        // passthrough
+                        bool needsHdrMetadataUpdate = SURF->m_colorManagement->needsHdrMetadataUpdate() || pMonitor->m_previousFSWindow != WINDOW;
+                        if (SURF->m_colorManagement->needsHdrMetadataUpdate())
+                            SURF->m_colorManagement->setHDRMetadata(createHDRMetadata(SURF->m_colorManagement->imageDescription(), pMonitor->m_output->parsedEDID));
+                        if (needsHdrMetadataUpdate)
+                            pMonitor->m_output->state->setHDRMetadata(SURF->m_colorManagement->hdrMetadata());
+                        hdrIsHandled = true;
+                    } else if (*PAUTOHDR && surfaceIsHDR)
+                        wantHDR = true; // auto-hdr: hdr on
+                }
             }
 
             pMonitor->m_previousFSWindow = WINDOW;
